@@ -1,46 +1,54 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from fastapi import FastAPI, Depends, HTTPException
+from sqlalchemy.orm import Session
+from app.db.database import SessionLocal, engine, Base
+from app.models.item import Item as ItemModel
+from app.schemas.item import Item, ItemCreate
 from typing import List
+
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-# 模擬資料庫
-items = []
+# 依賴：取得資料庫 session
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
-# 資料模型
-class Item(BaseModel):
-    id: int
-    name: str
-    price: float
-
-# GET /items → 查全部
+# GET /items
 @app.get("/items", response_model=List[Item])
-def get_items():
-    return items
+def read_items(db: Session = Depends(get_db)):
+    return db.query(ItemModel).all()
 
-# POST /items → 新增
+# POST /items
 @app.post("/items", response_model=Item)
-def create_item(item: Item):
-    for i in items:
-        if i.id == item.id:
-            raise HTTPException(status_code=400, detail="Item ID already exists")
-    items.append(item)
-    return item
+def create_item(item: ItemCreate, db: Session = Depends(get_db)):
+    db_item = ItemModel(name=item.name, price=item.price)
+    db.add(db_item)
+    db.commit()
+    db.refresh(db_item)
+    return db_item
 
-# PUT /items/{id} → 更新
+# PUT /items/{id}
 @app.put("/items/{item_id}", response_model=Item)
-def update_item(item_id: int, item: Item):
-    for index, i in enumerate(items):
-        if i.id == item_id:
-            items[index] = item
-            return item
-    raise HTTPException(status_code=404, detail="Item not found")
+def update_item(item_id: int, item: ItemCreate, db: Session = Depends(get_db)):
+    db_item = db.query(ItemModel).filter(ItemModel.id == item_id).first()
+    if not db_item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    db_item.name = item.name
+    db_item.price = item.price
+    db.commit()
+    db.refresh(db_item)
+    return db_item
 
-# DELETE /items/{id} → 刪除
+# DELETE /items/{id}
 @app.delete("/items/{item_id}")
-def delete_item(item_id: int):
-    for index, i in enumerate(items):
-        if i.id == item_id:
-            del items[index]
-            return {"detail": "Item deleted"}
-    raise HTTPException(status_code=404, detail="Item not found")
+def delete_item(item_id: int, db: Session = Depends(get_db)):
+    db_item = db.query(ItemModel).filter(ItemModel.id == item_id).first()
+    if not db_item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    db.delete(db_item)
+    db.commit()
+    return {"detail": "Item deleted"}

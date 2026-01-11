@@ -1,5 +1,25 @@
+# 虛擬環境
 venv/
+
+# Python cache
 __pycache__/
 *.pyc
-.env
+*.pyo
+*.pyd
+
+# SQLite 資料庫檔案
 *.db
+
+# 環境變數
+.env
+
+# 日誌與測試輸出
+*.log
+*.out
+
+# IDE / 編輯器檔案
+.vscode/
+.idea/
+
+# macOS 系統檔案
+.DS_Store

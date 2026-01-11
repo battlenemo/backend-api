@@ -5,7 +5,7 @@ class ItemBase(BaseModel):
     price: float
 
 class ItemCreate(ItemBase):
-    id: int
+    pass
 
 class Item(ItemBase):
     id: int
